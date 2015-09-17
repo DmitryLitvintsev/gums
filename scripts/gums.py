@@ -89,7 +89,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     if len(user_to_uid) == 0:
-        print_error("Something went wrong - got no user to UID mapping")
+        print_error("CRITICAL - Something went wrong - got no user to UID mapping")
         sys.exit(1)
 
     #
@@ -108,13 +108,14 @@ if __name__ == "__main__":
             name = parts[1].lower()
             fermi_group_to_gid[name]=gid
             combined_gid_to_group_map[gid]=name
+            #print ("DEBUG Scanning %s, found gid %s name=%s"%(base_url+gid_file,gid,name))
         contents.close()
     except Exception, msg:
         print_error(str(msg))
         sys.exit(1)
 
     if len(fermi_group_to_gid) == 0:
-        print_error("Something went wrong - got no group to GID mapping")
+        print_error("CRITICAL - Something went wrong - got no group to GID mapping")
         sys.exit(1)
 
     #
@@ -147,12 +148,12 @@ if __name__ == "__main__":
                 gid = mapper_to_gid.get(accountMapper)
                 if group_to_gid.has_key(groupname):
                     if group_to_gid.get(groupname) != gid :
-                        print_error("group name %s that has GID %s also has GID %s"%(groupname,group_to_gid.get(groupname),gid,))
+                        print_error("WARNING - group name %s that has GID %s also has GID %s"%(groupname,group_to_gid.get(groupname),gid,))
                     continue
                 group_to_gid[groupname] = gid
 
     if len(group_to_gid) == 0:
-        print_error("Something went wrong - got no group GID mapping")
+        print_error("CRITICAL - Something went wrong - got no group GID mapping")
         sys.exit(1)
 #
 # query database
@@ -173,13 +174,13 @@ if __name__ == "__main__":
             g = str(groupname)
             account_record = user_to_uid.get(a)
             uid = account_record.get("uid") if account_record else None
-            gid = group_to_gid.get(g)
-            if not gid:
-                print_error("group %s, acount=%s, DOES NOT HAVE GID in gums.conf"%(g,a,))
-                continue
+            gid = fermi_group_to_gid.get(g)
+            #TODO: what is being added here does not always make sense, and apparently it's not used afterwards! Enable debugging and crosscheck result files and logfile for 'uscms04' for an example
             if not uid or not gid:
-                print_error("account %s UID=%s, group %s GID=%s, skipping"%(a,uid,g,gid,))
+                #print_error("DEBUG - account %s UID=%s, group %s GID=%s, skipping"%(a,uid,g,gid,))
                 continue
+            #else: 
+            #    print_error("DEBUG - account %s UID=%s, group %s GID=%s"%(a,uid,g,gid,))
             groups = account_map.get(a)
             if gid not in groups:
                 account_map.get(a)["groups"].append(gid)
@@ -190,9 +191,9 @@ if __name__ == "__main__":
                 user[uid][0].append(gid)
     except mysql.connector.Error as err:
         if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
-            print_error("Something is wrong with your user name or password")
+            print_error("CRITICAL - Something is wrong with your user name or password")
         elif err.errno == errorcode.ER_BAD_DB_ERROR:
-            print_error("Database does not exist")
+            print_error("CRITICAL - Database does not exist")
         else:
             print_error(str(err))
     else:
@@ -200,7 +201,7 @@ if __name__ == "__main__":
         con.close()
 
     if len(user) == 0:
-        print_error("Something went wrong - got no user records")
+        print_error("CRITICAL - Something went wrong - got no user records")
         sys.exit(1)
 #
 # write out storage-authzb
@@ -247,14 +248,20 @@ if __name__ == "__main__":
 
     f=open("group","w")
 
-    keys = group_map.keys()
+    # We get Groups from the list of all groups at the lab (CCD webpage)
+    keys = combined_gid_to_group_map.keys()
     keys.sort()
 
     for k in keys:
-        group   = k
-        gid     = group_map.get(k).get("gid")
-        accounts = group_map.get(k).get("accounts")
-        f.write("%s:x:%s:%s\n"%(group,gid,string.join(accounts,",")))
+        gid   = k
+        groupName = combined_gid_to_group_map[gid]
+        if groupName in group_map: #There are users with this group
+          accounts = group_map[groupName].get("accounts")
+          #print("DEBUG - Users found for group %s with GID %s: %s"%(groupName,gid,accounts))
+        else: #No users have this group assigned (eg: glexec00..2999 groups)
+          print_error("INFO - No users found for group %s with GID %s"%(groupName,gid))
+          accounts = ''
+        f.write("%s:x:%s:%s\n"%(groupName,gid,string.join(accounts,",")))
     f.close()
 
     sys.exit(0)
