@@ -5,6 +5,9 @@ import string
 import sys
 import time
 import urllib
+import json
+import os
+import re
 from optparse import OptionParser
 
 import mysql.connector
@@ -61,6 +64,7 @@ if __name__ == "__main__":
                       metavar="PORT",type=str,default=3306,
                       help="port to connect")
 
+    parser.add_option("-v", action="store_true", dest="verbose")
 
     (options, args) = parser.parse_args()
 
@@ -108,7 +112,7 @@ if __name__ == "__main__":
             name = parts[1].lower()
             fermi_group_to_gid[name]=gid
             combined_gid_to_group_map[gid]=name
-            #print ("DEBUG Scanning %s, found gid %s name=%s"%(base_url+gid_file,gid,name))
+            if options.verbose: print ("DEBUG Scanning %s, found gid %s name=%s"%(base_url+gid_file,gid,name))
         contents.close()
     except Exception, msg:
         print_error(str(msg))
@@ -177,10 +181,10 @@ if __name__ == "__main__":
             gid = fermi_group_to_gid.get(g)
             #TODO: what is being added here does not always make sense, and apparently it's not used afterwards! Enable debugging and crosscheck result files and logfile for 'uscms04' for an example
             if not uid or not gid:
-                #print_error("DEBUG - account %s UID=%s, group %s GID=%s, skipping"%(a,uid,g,gid,))
+                if options.verbose: print_error("DEBUG - account %s UID=%s, group %s GID=%s, skipping"%(a,uid,g,gid,))
                 continue
-            #else: 
-            #    print_error("DEBUG - account %s UID=%s, group %s GID=%s"%(a,uid,g,gid,))
+            else: 
+                if options.verbose: print_error("DEBUG - account %s UID=%s, group %s GID=%s"%(a,uid,g,gid,))
             groups = account_map.get(a)
             if gid not in groups:
                 account_map.get(a)["groups"].append(gid)
@@ -243,6 +247,32 @@ if __name__ == "__main__":
     f.close()
 
 #
+# Generate json output for passwd file
+#
+
+    users = {}
+    f=open("passwd","r")
+    for line in f:
+        (uname, pwd, uid, gid, gecos, homedir, shell) = line.rstrip().split(':')
+        users[uname] = {
+            'comment': gecos,
+            'uid': uid,
+            'gid': gid,
+            'homedir': homedir,
+            'shell': shell
+        }
+    f.close()
+
+    obj = {}
+    obj['generationTime'] = int(time.time())
+    obj['numberOfUsers'] = len(users)
+    obj['users'] = users
+
+    f=open("passwd.json","w")
+    f.write(json.dumps(obj, indent=4, sort_keys=True))
+    f.close()
+
+#
 # write out group file
 #
 
@@ -257,11 +287,34 @@ if __name__ == "__main__":
         groupName = combined_gid_to_group_map[gid]
         if groupName in group_map: #There are users with this group
           accounts = group_map[groupName].get("accounts")
-          #print("DEBUG - Users found for group %s with GID %s: %s"%(groupName,gid,accounts))
+          if options.verbose: print("DEBUG - Users found for group %s with GID %s: %s"%(groupName,gid,accounts))
         else: #No users have this group assigned (eg: glexec00..2999 groups)
           print_error("INFO - No users found for group %s with GID %s"%(groupName,gid))
           accounts = ''
         f.write("%s:x:%s:%s\n"%(groupName,gid,string.join(accounts,",")))
+    f.close()
+
+#
+# Generate json output for group file
+#
+
+    groups = {}
+    f=open("group","r")
+    for line in f:
+        (gname, passwd, gid, users) = line.rstrip().split(':')
+        groups[gname] = {
+            'gid': gid,
+            'users': users,
+        }
+    f.close()
+    
+    obj = {}
+    obj['generationTime'] = int(time.time())
+    obj['numberOfGroups'] = len(groups)
+    obj['groups'] = groups
+
+    f=open("group.json","w")
+    f.write(json.dumps(obj, indent=4, sort_keys=True))
     f.close()
 
     sys.exit(0)
