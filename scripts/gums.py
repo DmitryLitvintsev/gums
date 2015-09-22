@@ -86,7 +86,8 @@ if __name__ == "__main__":
             account=parts[-1].strip().lower()
             if not user_to_uid.has_key(account):
                 user_to_uid[account] = { "groups" : [] , "primary" : gid, "uid" : uid, "lastName" : lastName, "firstName" : firstName }
-            user_to_uid[account]["groups"].append(gid)
+            if gid not in user_to_uid[account]["groups"]:
+                user_to_uid[account]["groups"].append(gid)
         contents.close()
     except Exception, msg:
         print_error(str(msg))
@@ -159,6 +160,7 @@ if __name__ == "__main__":
     if len(group_to_gid) == 0:
         print_error("CRITICAL - Something went wrong - got no group GID mapping")
         sys.exit(1)
+
 #
 # query database
 #
@@ -179,14 +181,14 @@ if __name__ == "__main__":
             account_record = user_to_uid.get(a)
             uid = account_record.get("uid") if account_record else None
             gid = fermi_group_to_gid.get(g)
+
             #TODO: what is being added here does not always make sense, and apparently it's not used afterwards! Enable debugging and crosscheck result files and logfile for 'uscms04' for an example
             if not uid or not gid:
                 if options.verbose: print_error("DEBUG - account %s UID=%s, group %s GID=%s, skipping"%(a,uid,g,gid,))
                 continue
             else: 
                 if options.verbose: print_error("DEBUG - account %s UID=%s, group %s GID=%s"%(a,uid,g,gid,))
-            groups = account_map.get(a)
-            if gid not in groups:
+            if gid not in account_map.get(a)["groups"]:
                 account_map.get(a)["groups"].append(gid)
             if not user.has_key(uid):
                  user[uid] = [[]]
@@ -207,28 +209,30 @@ if __name__ == "__main__":
     if len(user) == 0:
         print_error("CRITICAL - Something went wrong - got no user records")
         sys.exit(1)
+
 #
 # write out storage-authzb
 #
-
-    f=open("storage-authzdb","w")
-
-    items = user.items()
-    items.sort(key=lambda x: x[1][1])
-
-    for i in items:
-        f.write("authorize %s read-write %s %s / /pnfs/fnal.gov/usr /\n"%(i[-1][-1],i[0],string.join([str(x) for x in i[-1][0]],',')))
-    f.close()
-#
-# write out passwd file
-#
-
-    f=open("passwd","w")
 
     keys = account_map.keys()
     keys.sort()
     group_map={}
 
+    f=open("storage-authzdb","w")
+    for k in keys:
+        account = k
+        uid     = account_map.get(k).get("uid")
+        groups  = account_map.get(k).get("groups")
+        groups.sort()
+        f.write("authorize %s read-write %s %s / /pnfs/fnal.gov/usr /\n"%(account,uid,string.join([str(x) for x in groups],',')))
+    f.close()
+        
+
+#
+# write out passwd file
+#
+
+    f=open("passwd","w")
     for k in keys:
         account = k
         uid     = account_map.get(k).get("uid")
@@ -245,6 +249,7 @@ if __name__ == "__main__":
                 group_map[groupName]["accounts"].append(account)
         f.write("%s:x:%s:%s:%s %s:/home/%s:/sbin/nologin\n"%(account,uid,gid,firstName,lastName,account))
     f.close()
+
 
 #
 # Generate json output for passwd file
