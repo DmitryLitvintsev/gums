@@ -20,7 +20,7 @@ def help():
     txt = "usage %prog [options] file_name"
 
 Q="""
-select distinct m.ACCOUNT, u.GROUP_NAME
+select distinct m.ACCOUNT, u.GROUP_NAME, m.MAP
 from MAPPING m, USERS u
 where u.DN=m.DN
 """
@@ -138,7 +138,7 @@ if __name__ == "__main__":
         if child.tag=="accountMappers":
             for element in child.getchildren():
                 #
-                # 'groupName' is GID
+                # 'groupName' is GID 
                 #
                 mapper_to_gid[element.attrib.get('name')] = element.attrib.get('groupName')
 
@@ -179,19 +179,24 @@ if __name__ == "__main__":
                                       port=options.port)
         cursor = con.cursor()
         cursor.execute(Q)
-        for account, groupname in cursor:
+        for account, groupname, mapname in cursor:
             a = str(account)
             g = str(groupname)
+            m = str(mapname)
+            #
+            # kuldge to exclude Pool accounts for which GUMS don't tell us GID
+            # and we fallback to GID from Fermi uid.list for these accounts
+            #
+            if m.endswith("Pool") : continue
             account_record = user_to_uid.get(a)
             uid = account_record.get("uid") if account_record else None
             gid = group_to_gid.get(g)
-            if not gid :
+            if not gid : 
                 gid = fermi_group_to_gid.get(g)
-            #TODO: what is being added here does not always make sense, and apparently it's not used afterwards! Enable debugging and crosscheck result files and logfile for 'uscms04' for an example
             if not uid or not gid:
                 if options.verbose: print_error("DEBUG - account %s UID=%s, group %s GID=%s, skipping"%(a,uid,g,gid,))
                 continue
-            else:
+            else: 
                 if options.verbose: print_error("DEBUG - account %s UID=%s, group %s GID=%s"%(a,uid,g,gid,))
             if gid not in account_map.get(a)["groups"]:
                 account_map.get(a)["groups"].append(gid)
@@ -231,7 +236,6 @@ if __name__ == "__main__":
         groups.sort()
         f.write("authorize %s read-write %s %s / /pnfs/fnal.gov/usr /\n"%(account,uid,string.join([str(x) for x in groups],',')))
     f.close()
-
 
 #
 # write out passwd file
@@ -317,7 +321,7 @@ if __name__ == "__main__":
             'users': users,
         }
     f.close()
-
+    
     obj = {}
     obj['generationTime'] = int(time.time())
     obj['numberOfGroups'] = len(groups)
