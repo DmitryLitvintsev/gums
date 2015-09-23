@@ -137,7 +137,11 @@ if __name__ == "__main__":
     for child in root:
         if child.tag=="accountMappers":
             for element in child.getchildren():
+                #
+                # 'groupName' is GID 
+                #
                 mapper_to_gid[element.attrib.get('name')] = element.attrib.get('groupName')
+
 
     #
     # generate map from accountMappers to groupName
@@ -180,7 +184,7 @@ if __name__ == "__main__":
             g = str(groupname)
             account_record = user_to_uid.get(a)
             uid = account_record.get("uid") if account_record else None
-            gid = fermi_group_to_gid.get(g)
+            gid = group_to_gid.get(g)
 
             #TODO: what is being added here does not always make sense, and apparently it's not used afterwards! Enable debugging and crosscheck result files and logfile for 'uscms04' for an example
             if not uid or not gid:
