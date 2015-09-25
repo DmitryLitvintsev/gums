@@ -223,7 +223,7 @@ if __name__ == "__main__":
 #
 # write out storage-authzb
 #
-
+    
     keys = account_map.keys()
     keys.sort()
     group_map={}
@@ -235,6 +235,7 @@ if __name__ == "__main__":
         groups  = account_map.get(k).get("groups")
         groups.sort()
         f.write("authorize %s read-write %s %s / /pnfs/fnal.gov/usr /\n"%(account,uid,string.join([str(x) for x in groups],',')))
+    f.write("# THE END %d\n"%(int(time.time())))
     f.close()
 
 #
