@@ -98,7 +98,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     #
-    # parse Fermi group list file, generat group map
+    # parse Fermi group list file, generate group map
     #
 
     fermi_group_to_gid = {}
@@ -138,7 +138,7 @@ if __name__ == "__main__":
         if child.tag=="accountMappers":
             for element in child.getchildren():
                 #
-                # 'groupName' is GID 
+                # 'groupName' is GID
                 #
                 mapper_to_gid[element.attrib.get('name')] = element.attrib.get('groupName')
 
@@ -191,12 +191,12 @@ if __name__ == "__main__":
             account_record = user_to_uid.get(a)
             uid = account_record.get("uid") if account_record else None
             gid = group_to_gid.get(g)
-            if not gid : 
+            if not gid :
                 gid = fermi_group_to_gid.get(g)
             if not uid or not gid:
                 if options.verbose: print_error("DEBUG - account %s UID=%s, group %s GID=%s, skipping"%(a,uid,g,gid,))
                 continue
-            else: 
+            else:
                 if options.verbose: print_error("DEBUG - account %s UID=%s, group %s GID=%s"%(a,uid,g,gid,))
             if gid not in account_map.get(a)["groups"]:
                 account_map.get(a)["groups"].append(gid)
@@ -223,7 +223,7 @@ if __name__ == "__main__":
 #
 # write out storage-authzb
 #
-    
+
     keys = account_map.keys()
     keys.sort()
     group_map={}
@@ -322,7 +322,7 @@ if __name__ == "__main__":
             'users': users,
         }
     f.close()
-    
+
     obj = {}
     obj['generationTime'] = int(time.time())
     obj['numberOfGroups'] = len(groups)

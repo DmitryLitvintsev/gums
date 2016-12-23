@@ -2,7 +2,7 @@
 
 """
 massage CMS /etc/grid-security/grid-vorolemap and /etc/grid-security/storage-authzdb
-to generate reduced version that contains only 
+to generate reduced version that contains only
 
 * FQAN username
 
@@ -31,11 +31,10 @@ if __name__ == "__main__":
             fqan     = parts[1]
             username = parts[2]
             """
-            only grab enstries that contain 'cms' in FQAN string
+            only grab entries that contain 'cms' in FQAN string
             """
             if fqan.find("cms") != -1:
                 vorolemap[fqan] = username
-    f.closed
 
     authzdb={}
     with open(AUTHZDB_FILE,"r") as f:
@@ -47,7 +46,6 @@ if __name__ == "__main__":
             if username in authzdb :
                 print "already there, but will take last ", line.strip(), " vs ", authzdb[username]
             authzdb[username] = line.strip()
-    f.closed
 
     items = vorolemap.items()
     items.sort(key=lambda x: x[0])
@@ -62,7 +60,6 @@ if __name__ == "__main__":
                 f.write("\"*\" \"%s\" %s\n"%(fqan,username))
                 new_authzdb[username] = authzdb[username]
 
-    f.closed
 
     items = new_authzdb.items()
     items.sort(key=lambda x: x[0])
@@ -71,11 +68,10 @@ if __name__ == "__main__":
     """
     write out new storage-authzdb
     """
-    
+
     with open("storage-authzdb.new","w") as f:
         for (username,entry) in items:
             f.write("%s\n"%(entry,))
-    f.closed
 
 
 
