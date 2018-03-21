@@ -21,7 +21,11 @@ if __name__ == "__main__":
 
     c.setopt(c.WRITEFUNCTION, buffer.write)
     c.perform()
+    rc=c.getinfo(pycurl.HTTP_CODE)
     c.close()
+
+    if rc != 200 :
+       sys.exit(1) 
 
     body = json.load(StringIO(buffer.getvalue()))
     body.sort(key=lambda x: x["username"])
