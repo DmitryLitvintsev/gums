@@ -7,8 +7,8 @@ import string
 import subprocess
 import sys
 import time
-from StringIO import StringIO
 
+from StringIO import StringIO
 def print_error(text):
     sys.stderr.write(time.strftime("%Y-%m-%d %H:%M:%S",time.localtime(time.time()))+" : " +text+"\n")
     sys.stderr.flush()
@@ -26,22 +26,24 @@ def execute_command(cmd):
         print_error("Command \"%s\" failed: rc=%d, error=%s"%(cmd,rc,errors.replace('\n',' ')))
     return rc
 
-
 if __name__ == "__main__":
+
     rc=execute_command("cigetcert -i 'Fermi National Accelerator Laboratory' -o /tmp/x509up_%d_ferry"%(os.getuid()))
 
     if rc :
         print_error("Failed to create proxy")
         sys.exit(1)
 
+
     buffer = StringIO()
     c = pycurl.Curl()
-    c.setopt(c.URL, 'https://fermicloud033.fnal.gov:8443/getStorageAuthzDBFile')
+    c.setopt(c.URL, 'https://fermicloud033.fnal.gov:8443/getGridMapFile')
 
     """
     With very few exceptions, PycURL option names are derived from
     libcurl option names by removing the CURLOPT_ prefix.
     """
+
 
     c.setopt(c.CAPATH,"/etc/grid-security/certificates")
     c.setopt(c.SSLCERT,"/tmp/x509up_%d_ferry"%(os.getuid(),))
@@ -55,33 +57,14 @@ if __name__ == "__main__":
        sys.exit(1)
 
     body = json.load(StringIO(buffer.getvalue()))
-    body.sort(key=lambda x: x["username"])
+    print body
+    body.sort(key=lambda x: x["userdn"])
 
     try:
-        with open("storage-authzdb.new","w") as f:
+        with open("grid-mapfile.new","w") as f:
             for item in body:
-                if item.get("username") == "simons" :
-                    continue
-                if item.get("username") == "ifisk" :
-                    item["root"] = "pnfs/fnal.gov/usr/Simons"
-                    item["uid"] = "49331"
-                    item["gid"] = ["9323",]
-                    continue
-                if item.get("username") == "auger" :
-                    item["root"] = "pnfs/fnal.gov/usr/fermigrid/volatile/auger"
-                    continue
-                gids=map(int,item.get("gid"))
-                gids.sort()
-                f.write("%s\n"%(string.join([item.get("decision","authorize"),
-                                             item.get("username"),
-                                             item.get("privileges"),
-                                             item.get("uid"),
-                                             string.join(map(str,gids),","),
-                                             item.get("home","/"),
-                                             item.get("root"),
-                                             item.get("last_path","/")],
-                                            " ")))
-
+                f.write("\"%s\" %s\n"%(item.get("userdn"),
+                                       item.get("mapped_uname")))
     except Exception, msg:
         print str(msg)
         sys.exit(1)
