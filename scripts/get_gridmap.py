@@ -27,14 +27,6 @@ def execute_command(cmd):
     return rc
 
 if __name__ == "__main__":
-
-    rc=execute_command("cigetcert -i 'Fermi National Accelerator Laboratory' -o /tmp/x509up_%d_ferry"%(os.getuid()))
-
-    if rc :
-        print_error("Failed to create proxy")
-        sys.exit(1)
-
-
     buffer = StringIO()
     c = pycurl.Curl()
     c.setopt(c.URL, 'https://fermicloud033.fnal.gov:8443/getGridMapFile')
@@ -43,10 +35,9 @@ if __name__ == "__main__":
     With very few exceptions, PycURL option names are derived from
     libcurl option names by removing the CURLOPT_ prefix.
     """
-
-
     c.setopt(c.CAPATH,"/etc/grid-security/certificates")
-    c.setopt(c.SSLCERT,"/tmp/x509up_%d_ferry"%(os.getuid(),))
+    c.setopt(c.SSLCERT,"/etc/grid-security/hostcert.pem")
+    c.setopt(c.SSLKEY,"/etc/grid-security/hostkey.pem")
 
     c.setopt(c.WRITEFUNCTION, buffer.write)
     c.perform()
